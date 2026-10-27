@@ -1,0 +1,48 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { vectorize } = require('../public/vector-worker.js');
+function image(w, h, paint, options = {}) {
+  const pixels = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = (y*w+x)*4;
+    const color = paint(x,y);
+    for (let c=0; c<4; c++) pixels[i+c] = color[c];
+  }
+  return vectorize({width:w,height:h,outputWidth:w,outputHeight:h,pixels,options:{colors:8,detail:.7,smoothing:0,...options}});
+}
+test('solid input produces one genuinely vector rectangle', () => {
+  const doc=image(12,10,()=>[24,78,155,255]);
+  assert.equal(doc.paletteSize,1);
+  assert.equal(doc.totalLoops,1);
+  assert.match(doc.svg, /<path fill="#184e9b"/);
+  assert.match(doc.svg, /viewBox="0 0 12 10"/);
+  assert.doesNotMatch(doc.svg, /<image|data:image/);
+});
+test('transparent area remains transparent', () => {
+  const doc=image(10,10,(x,y)=> x<5 ? [0,0,0,0] : [220,40,40,255]);
+  assert.equal(doc.paletteSize,1);
+  assert.equal(doc.totalLoops,1);
+  assert.doesNotMatch(doc.svg, /<rect[^>]*fill="white"/);
+});
+test('two separated colors create two independently filled vector regions', () => {
+  const doc=image(24,12,(x)=>x<12?[232,34,23,255]:[15,89,233,255]);
+  assert.equal(doc.paletteSize,2);
+  assert.equal(doc.paths.length,2);
+});
+test('holes are represented by evenodd contour paths', () => {
+  const doc=image(20,20,(x,y)=>(x>4&&x<15&&y>4&&y<15)?[0,0,0,0]:[0,80,100,255]);
+  assert.equal(doc.totalLoops,2);
+  assert.match(doc.svg,/fill-rule="evenodd"/);
+});
+test('fully transparent images return valid empty SVG', () => {
+  const doc=image(5,5,()=>[0,0,0,0]);
+  assert.equal(doc.paths.length,0);
+  assert.match(doc.svg,/xmlns="http:\/\/www.w3.org\/2000\/svg"/);
+});
+test('output is stable across repeated processing', () => {
+  const gradient=(x,y)=>[(x*13+y*5)%256,(x*9)%256,(y*19)%256,255];
+  assert.equal(image(28,28,gradient).svg,image(28,28,gradient).svg);
+});
+test('rejects working dimensions above safety limit', () => {
+  assert.throws(()=>vectorize({width:999,height:999,pixels:new Uint8ClampedArray(4),options:{colors:8,detail:1,smoothing:0}}),/Invalid working dimensions/);
+});

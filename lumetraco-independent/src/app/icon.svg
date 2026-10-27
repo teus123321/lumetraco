@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Ícone do LumeTraço">
+  <title>LumeTraço</title>
+  <rect x="1" y="1" width="62" height="62" rx="19" fill="#19362d"/>
+  <path d="M15.7 40 C20.1 19.8 36.4 15.6 51.2 19.8 C35 22.5 34 42 17.1 47"
+    fill="none" stroke="#d8f78d" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="49.8" cy="18.3" r="5" fill="#d8f78d"/>
+  <circle cx="16" cy="47" r="4.4" fill="#d8f78d"/>
+</svg>
