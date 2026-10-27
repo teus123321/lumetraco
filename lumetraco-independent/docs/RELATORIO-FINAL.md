@@ -35,3 +35,14 @@ Processamento local, upload por clique/arrastar/colar, k-means, contornos, compa
 Foi construída uma **fixture estática HTML/CSS** em `scripts/new-identity-preview.py` para conferir a direção visual antes de instalar o Next.js. Capturas em `docs/preview-estatico/home-{390,768,1440}.png`; sem overflow horizontal nos três tamanhos. Estas **não são capturas da aplicação React**; a execução completa e os testes E2E seguem pendentes.
 
 Verificações locais realizadas: `node --test tests/engine.test.cjs` (**7 de 7 aprovados**) e `node scripts/verify-syntax.cjs` (**14 arquivos TS/TSX sem erros de sintaxe na transpilação**). Isso não equivale à validação de tipos, build ou navegador.
+
+
+## Atualização funcional v2 (27/10/2026)
+
+Implementado no editor LumeTraço: seleção de regiões conectadas, recoloração individual, recoloração de paleta, ocultação e restauração de cores e regiões, remoção heurística de fundo, desfazer/refazer, pré-recorte, perfis de exportação arte/corte/gravação, traçado em contornos e controle de espessura. Resultados permanecem no navegador. Esses recursos são independentes do Vectorizer.AI, não replicam seu código-fonte.
+
+Diferenças importantes: o motor continua sendo quantização RGB + contornos simplificados; não possui IA de inferência geométrica, ajuste paramétrico de círculos/estrelas, edição manual precisa de nós/cantos, suporte completo a alfa parcial, reconstrução subpixel ou arestas compartilhadas. O arredondamento de cantos é aproximado por Bézier quadrática apenas em SVG e PNG; EPS/PDF/DXF usam os polígonos subjacentes. As opções oferecidas NÃO devem ser confundidas com os ajustes de exportação avançados da referência. A remoção de fundo usa a maior região cromática e pode exigir revisão manual.
+
+Verificações desta atualização: testes de engine com Node e transpilação sintática de TypeScript; build de produção e E2E ainda devem ser executados no ambiente com dependências instaladas.
+
+Recuperação de sessão: arquivo da imagem mantido no IndexedDB local, sem upload ao servidor. O navegador pode desabilitar esse recurso no modo privado ou em caso de falta de espaço.

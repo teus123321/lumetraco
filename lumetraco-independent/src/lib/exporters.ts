@@ -17,14 +17,15 @@ function postscript(doc: VectorDocument): string {
   const commands: string[] = ["%!PS-Adobe-3.0 EPSF-3.0", `%%BoundingBox: 0 0 ${doc.originalWidth} ${doc.originalHeight}`, "%%Creator: LumeTraco", "%%EndComments", "gsave"];
   for (const path of doc.paths) {
     const [r, g, b] = hexRgb(path.color);
-    commands.push(`${r.toFixed(4)} ${g.toFixed(4)} ${b.toFixed(4)} setrgbcolor`, "newpath");
+    commands.push(`${doc.drawStyle === "stroke" ? hexRgb(doc.strokeColor || "#152e26").map(v => v.toFixed(4)).join(" ") : `${r.toFixed(4)} ${g.toFixed(4)} ${b.toFixed(4)}`} setrgbcolor`, "newpath");
     for (const loop of path.loops) {
       if (loop.length < 6) continue;
       commands.push(`${(loop[0] * kx).toFixed(3)} ${(doc.originalHeight - loop[1] * ky).toFixed(3)} moveto`);
       for (let i = 2; i < loop.length; i += 2) commands.push(`${(loop[i] * kx).toFixed(3)} ${(doc.originalHeight - loop[i + 1] * ky).toFixed(3)} lineto`);
       commands.push("closepath");
     }
-    commands.push("eofill");
+    if (doc.drawStyle === "stroke") commands.push(`${((doc.strokeWidth || 1.25) * (kx + ky) / 2).toFixed(3)} setlinewidth`, "stroke");
+    else commands.push("eofill");
   }
   return commands.concat(["grestore", "showpage", "%%EOF"]).join("\n");
 }
@@ -34,14 +35,17 @@ function pdf(doc: VectorDocument): Uint8Array {
   const stream: string[] = ["q", `${sx.toFixed(5)} 0 0 ${(-sy).toFixed(5)} 0 ${height} cm`];
   for (const path of doc.paths) {
     const [r, g, b] = hexRgb(path.color);
-    stream.push(`${r.toFixed(5)} ${g.toFixed(5)} ${b.toFixed(5)} rg`);
+    if (doc.drawStyle === "stroke") {
+      const [sr, sg, sb] = hexRgb(doc.strokeColor || "#152e26");
+      stream.push(`${sr.toFixed(5)} ${sg.toFixed(5)} ${sb.toFixed(5)} RG`, `${doc.strokeWidth || 1.25} w`);
+    } else stream.push(`${r.toFixed(5)} ${g.toFixed(5)} ${b.toFixed(5)} rg`);
     for (const loop of path.loops) {
       if (loop.length < 6) continue;
       stream.push(`${loop[0]} ${loop[1]} m`);
       for (let i = 2; i < loop.length; i += 2) stream.push(`${loop[i]} ${loop[i + 1]} l`);
       stream.push("h");
     }
-    stream.push("f*");
+    stream.push(doc.drawStyle === "stroke" ? "S" : "f*");
   }
   stream.push("Q");
   const data = stream.join("\n") + "\n";

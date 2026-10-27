@@ -9,6 +9,9 @@ export type VectorDocument = {
   originalHeight: number;
   totalLoops: number;
   paletteSize: number;
+  drawStyle?: "fill" | "stroke";
+  strokeWidth?: number;
+  strokeColor?: string;
 };
 export const DEFAULT_OPTIONS: VectorOptions = { colors: 10, detail: 0.85, smoothing: 1, resolution: 340 };
 export type VectorFormat = "svg" | "png" | "pdf" | "eps" | "dxf";

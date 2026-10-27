@@ -159,6 +159,35 @@
     }
     return loops;
   }
+  function signedArea(loop) {
+    let area = 0;
+    for (let i = 0; i < loop.length; i += 2) {
+      const j = (i + 2) % loop.length;
+      area += loop[i] * loop[j + 1] - loop[j] * loop[i + 1];
+    }
+    return area / 2;
+  }
+  function containsPoint(loop, x, y) {
+    let inside = false;
+    for (let i = 0, j = loop.length - 2; i < loop.length; j = i, i += 2) {
+      const xi = loop[i], yi = loop[i + 1], xj = loop[j], yj = loop[j + 1];
+      if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+  // Connected positive outlines become individually editable paths; holes stay
+  // attached to the smallest enclosing positive outline via even-odd fill.
+  function editableRegions(color, loops) {
+    const positives = loops.filter(loop => signedArea(loop) > 0).map(loop => ({color, loops: [loop], area: signedArea(loop)}));
+    for (const hole of loops.filter(loop => signedArea(loop) < 0)) {
+      const candidates = positives.filter(r => containsPoint(r.loops[0], hole[0] + 0.001, hole[1] + 0.001));
+      if (candidates.length) {
+        candidates.sort((a, b) => a.area - b.area);
+        candidates[0].loops.push(hole);
+      }
+    }
+    return positives.map(({color, loops}) => ({color, loops}));
+  }
   function vectorize(input) {
     const w = input.width, h = input.height;
     if (!Number.isInteger(w) || !Number.isInteger(h) || w < 1 || h < 1 || w * h > 350000) throw new Error("Invalid working dimensions");
@@ -173,7 +202,7 @@
       if (!loops.length) continue;
       const hex = "#" + colors[c].map(v => Math.round(v).toString(16).padStart(2, "0")).join("");
       totalLoops += loops.length;
-      paths.push({ color: hex, loops });
+      paths.push(...editableRegions(hex, loops));
     }
     const svgPaths = paths.map(group => {
       const d = group.loops.map(loop => {
@@ -184,7 +213,7 @@
       return `<path fill="${group.color}" fill-rule="evenodd" d="${d}"/>`;
     }).join("\n");
     const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${input.outputWidth || w}" height="${input.outputHeight || h}" viewBox="0 0 ${w} ${h}">\n${svgPaths}\n</svg>`;
-    return { svg, paths, width: w, height: h, originalWidth: input.outputWidth || w, originalHeight: input.outputHeight || h, totalLoops, paletteSize: paths.length };
+    return { svg, paths, width: w, height: h, originalWidth: input.outputWidth || w, originalHeight: input.outputHeight || h, totalLoops, paletteSize: new Set(paths.map(path => path.color)).size };
   }
   // Node can test this engine without installing any external package.
   if (typeof module !== "undefined" && module.exports) module.exports = { vectorize, traceLabel, simplifyClosed };

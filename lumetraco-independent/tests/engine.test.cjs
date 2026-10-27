@@ -46,3 +46,14 @@ test('output is stable across repeated processing', () => {
 test('rejects working dimensions above safety limit', () => {
   assert.throws(()=>vectorize({width:999,height:999,pixels:new Uint8ClampedArray(4),options:{colors:8,detail:1,smoothing:0}}),/Invalid working dimensions/);
 });
+test('disconnected regions with the same color are independently editable', () => {
+  const doc = image(24, 10, (x, y) => ((x >= 2 && x <= 6 && y >= 2 && y <= 7) || (x >= 16 && x <= 20 && y >= 2 && y <= 7)) ? [10, 90, 30, 255] : [0, 0, 0, 0]);
+  assert.equal(doc.paletteSize, 1);
+  assert.equal(doc.paths.length, 2);
+  assert.equal(doc.paths.every(p => p.loops.length === 1), true);
+});
+test('holes remain connected to their containing region', () => {
+  const doc = image(24, 24, (x,y) => (x>=4 && x<=19 && y>=4 && y<=19 && !(x>=9&&x<=14&&y>=9&&y<=14)) ? [200, 60, 80, 255] : [0,0,0,0]);
+  assert.equal(doc.paths.length, 1);
+  assert.equal(doc.paths[0].loops.length, 2);
+});
