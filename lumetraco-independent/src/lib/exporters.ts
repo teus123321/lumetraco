@@ -51,7 +51,8 @@ function pdf(doc: VectorDocument): Uint8Array {
     `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << >> /Contents 4 0 R >>`,
     `<< /Length ${data.length} >>\nstream\n${data}endstream`
   ];
-  let result = "%PDF-1.4\n%LumeTraco\n", offsets = [0];
+  let result = "%PDF-1.4\n%LumeTraco\n";
+  const offsets = [0];
   for (let i = 0; i < objects.length; i++) { offsets.push(result.length); result += `${i + 1} 0 obj\n${objects[i]}\nendobj\n`; }
   const xref = result.length;
   result += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
