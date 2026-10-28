@@ -14,3 +14,13 @@ O download convencional do Chromium do Playwright retornou arquivo inválido nes
 Executar os E2E de produção: primeiro `npm run build`, depois `E2E_PRODUCTION=1 npm run test:e2e`.
 
 Resultados de deployment e commit: conferir status GitHub/Vercel do commit desta entrega; nenhum sucesso de deployment é presumido pelo build local.
+
+## Verificação em produção
+
+Implementação publicada na `main`: [`b28b9a9`](https://github.com/teus123321/lumetraco/commit/b28b9a9d13dffdd3940f32ab0a115a21ac58d258).
+
+Ambos os checks Vercel concluíram com `success`. Aplicação principal: https://lumetraco-independent-wluf.vercel.app/editor . Deployment: https://vercel.com/mateushgds75-3220s-projects/lumetraco-independent-wluf/928Sh546VanVe9Wtc8fHsGE8ny3j .
+
+No navegador de produção: exemplo processado, prévia visível com 28 regiões e download de SVG concluído. XML do arquivo baixado validado: 58.830 bytes, 28 elementos `path`, oito caminhos com curvas cúbicas e nenhum elemento `image`. Não houve erro do aplicativo no console; o navegador remoto registrou mensagens da sua própria extensão, sem origem no app.
+
+![Editor em produção](production-b28b9a9.jpg)
