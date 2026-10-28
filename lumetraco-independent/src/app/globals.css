@@ -190,3 +190,8 @@ button,select,input {font:inherit;} button{cursor:pointer;} button:disabled {cur
 .vector-viewport .viewer-canvas {background:transparent;}
 .editor-extra-toolbar {flex-wrap:wrap;gap:8px;}
 .processing-overlay button {pointer-events:auto;line-height:1.4;}
+
+.advanced-export { margin: 14px 0; padding: 12px; border: 1px solid var(--border, #dfe5df); border-radius: 10px; }
+.advanced-export summary { cursor: pointer; font-weight: 600; margin-bottom: 10px; }
+.advanced-export > label { display:block; margin-top:12px; }
+@media (max-width: 600px) { .viewer-toolbar { flex-wrap:wrap; gap:10px; } .view-tabs { flex-wrap:wrap; } }

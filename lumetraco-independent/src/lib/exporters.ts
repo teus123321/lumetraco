@@ -1,3 +1,4 @@
+import { unique } from "../../public/vector-edges";
 import { pathCommands, flatten } from "../../public/vector-geometry";
 import type { VectorDocument, VectorFormat } from "./types";
 
@@ -13,11 +14,14 @@ function saveBlob(blob: Blob, filename: string) {
   document.body.appendChild(anchor); anchor.click(); anchor.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
+function drawingPaths(doc: VectorDocument) {
+  return doc.drawStyle === "stroke" && doc.edgeMode ? unique(doc.paths).map(e => ({color:doc.strokeColor || "#152e26", opacity:1, loops:[] as number[][], commands:[["M",...e.a],e.c] as import("../../public/vector-geometry").Command[]})) : doc.paths;
+}
 export function postscript(doc: VectorDocument): string {
   if (doc.paths.some(p => (p.opacity ?? 1) < 0.999)) throw new Error("EPS não suporta semitransparência. Use SVG, PDF ou PNG para preservar a opacidade.");
   const kx = doc.originalWidth / doc.width, ky = doc.originalHeight / doc.height;
   const commands: string[] = ["%!PS-Adobe-3.0 EPSF-3.0", `%%BoundingBox: 0 0 ${doc.originalWidth} ${doc.originalHeight}`, "%%Creator: LumeTraco", "%%EndComments", "gsave", "1 setlinejoin", "1 setlinecap"];
-  for (const path of doc.paths) {
+  for (const path of drawingPaths(doc)) {
     const [r, g, b] = hexRgb(path.color);
     commands.push(`${doc.drawStyle === "stroke" ? hexRgb(doc.strokeColor || "#152e26").map(v => v.toFixed(4)).join(" ") : `${r.toFixed(4)} ${g.toFixed(4)} ${b.toFixed(4)}`} setrgbcolor`, "newpath");
     for (const command of pathCommands(path)) {
@@ -35,10 +39,10 @@ export function postscript(doc: VectorDocument): string {
 export function pdf(doc: VectorDocument): Uint8Array {
   const scale = Math.min(1, 14400 / Math.max(doc.originalWidth, doc.originalHeight));
   const width = doc.originalWidth * scale, height = doc.originalHeight * scale;
-  const alphas = [...new Set(doc.paths.map(p => p.opacity ?? 1))];
+  const alphas = [...new Set(drawingPaths(doc).map(p => p.opacity ?? 1))];
   const sx = width / doc.width, sy = height / doc.height;
   const stream: string[] = ["q", "1 J", "1 j", `${sx.toFixed(5)} 0 0 ${(-sy).toFixed(5)} 0 ${height} cm`];
-  for (const path of doc.paths) {
+  for (const path of drawingPaths(doc)) {
     const [r, g, b] = hexRgb(path.color);
     stream.push(`/GS${alphas.indexOf(path.opacity ?? 1)} gs`);
     if (doc.drawStyle === "stroke") {
@@ -71,7 +75,20 @@ export function pdf(doc: VectorDocument): Uint8Array {
 export function dxf(doc: VectorDocument): string {
   const kx = doc.originalWidth / doc.width, ky = doc.originalHeight / doc.height;
   const out = ["0", "SECTION", "2", "HEADER", "9", "$ACADVER", "1", "AC1015", "9", "$INSUNITS", "70", "0", "0", "ENDSEC", "0", "SECTION", "2", "ENTITIES"];
-  for (const path of doc.paths) for (const loop of flatten(pathCommands(path), 0.15 / Math.max(kx, ky))) {
+  if (doc.edgeMode) {
+    for (const edge of unique(doc.paths)) {
+      // Flatten the cubic as a temporary closed contour, but emit only its forward segments.
+      let points: number[];
+      if(edge.c[0] === "L") points=[...edge.a,...edge.c.slice(1) as number[]];
+      else {
+        const loop=flatten([["M",...edge.a] as import("../../public/vector-geometry").Command,edge.c,["Z"]],(doc.lineTolerance ?? .15)/Math.max(kx,ky))[0];
+        points=loop || [...edge.a,...edge.c.slice(-2) as number[]];
+      }
+      for(let i=0;i+3<points.length;i+=2)out.push("0","LINE","100","AcDbEntity","8","LumeTraco","100","AcDbLine","10",String(points[i]*kx),"20",String((doc.height-points[i+1])*ky),"11",String(points[i+2]*kx),"21",String((doc.height-points[i+3])*ky));
+    }
+    return out.concat(["0","ENDSEC","0","EOF",""]).join("\n");
+  }
+  for (const path of doc.paths) for (const loop of flatten(pathCommands(path), (doc.lineTolerance ?? .15) / Math.max(kx, ky))) {
     const count = loop.length / 2;
     if (count < 3) continue;
     // DXF exports closed editable outlines; unlike SVG, these have no fills.
@@ -81,7 +98,8 @@ export function dxf(doc: VectorDocument): string {
   return out.concat(["0", "ENDSEC", "0", "EOF", ""]).join("\n");
 }
 async function png(doc: VectorDocument): Promise<Blob> {
-  const scale = Math.min(1, 2400 / Math.max(doc.originalWidth, doc.originalHeight));
+  if (doc.originalWidth * doc.originalHeight > 32_000_000 || Math.max(doc.originalWidth, doc.originalHeight) > 8192) throw new Error("PNG limitado a 32 megapixels e 8192 px por lado. Reduza a escala de saída.");
+  const scale = 1;
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(doc.originalWidth * scale));
   canvas.height = Math.max(1, Math.round(doc.originalHeight * scale));

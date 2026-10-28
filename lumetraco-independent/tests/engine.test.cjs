@@ -57,3 +57,6 @@ test('holes remain connected to their containing region', () => {
   assert.equal(doc.paths.length, 1);
   assert.equal(doc.paths[0].loops.length, 2);
 });
+test('automatic palette recognizes a small flat palette deterministically',()=>{
+ const doc=image(30,12,x=>x<10?[255,0,0,255]:x<20?[0,255,0,255]:[0,0,255,255],{autoColors:true});assert.equal(doc.paletteSize,3);
+});

@@ -1,11 +1,11 @@
 "use client";
 import type { VectorDocument, VectorOptions } from "@/lib/types";
 import type { ExportStyle, RegionEdits } from "@/lib/vector-editor";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
-export type EditorHistory = { edits: RegionEdits; exportStyle: ExportStyle };
+export type EditorHistory = { file?: File; sourceDoc?: VectorDocument; options?: VectorOptions; edits: RegionEdits; exportStyle: ExportStyle };
 export type EditorDraft = { file: File; sourceDoc: VectorDocument; options: VectorOptions; edits: RegionEdits; exportStyle: ExportStyle; undoStack: EditorHistory[]; redoStack: EditorHistory[] };
-type Session = { file: File | null; setFile: (file: File | null) => void; editorDraft: React.RefObject<EditorDraft | null> };
+type Session = { file: File | null; setFile: (file: File | null) => void; editorDraft: React.RefObject<EditorDraft | null>; saveDraft: (draft: EditorDraft) => Promise<void> };
 type StoredFile = { name: string; type: string; data: Blob; lastModified: number };
 const ImageContext = createContext<Session | null>(null);
 
@@ -22,16 +22,20 @@ function openImagesDb(): Promise<IDBDatabase> {
   });
 }
 
-async function readLastImage(): Promise<File | null> {
-  const db = await openImagesDb();
-  try {
-    const item = await new Promise<StoredFile | undefined>((resolve, reject) => {
-      const request = db.transaction("images", "readonly").objectStore("images").get("latest");
-      request.onsuccess = () => resolve(request.result as StoredFile | undefined);
-      request.onerror = () => reject(request.error);
-    });
-    return item ? new File([item.data], item.name, { type: item.type, lastModified: item.lastModified }) : null;
-  } finally { db.close(); }
+async function readLastSession(): Promise<{file:File|null;draft:EditorDraft|null}> {
+  const db=await openImagesDb();
+  try { return await new Promise((resolve,reject)=>{
+    const tx=db.transaction("images","readonly"),store=tx.objectStore("images");
+    const image=store.get("latest"),draft=store.get("draft");
+    tx.oncomplete=()=>{const item=image.result as StoredFile|undefined;const saved=draft.result as EditorDraft|undefined;
+      const file=item?new File([item.data],item.name,{type:item.type,lastModified:item.lastModified}):null;
+      const matching=saved&&file&&saved.file.name===file.name&&saved.file.size===file.size&&saved.file.lastModified===file.lastModified;
+      resolve({file,draft:matching?{...saved,file}:null});};tx.onerror=()=>reject(tx.error);
+  }); } finally {db.close();}
+}
+async function persistDraft(draft:EditorDraft) {
+  const db=await openImagesDb();
+  try {await new Promise<void>((resolve,reject)=>{const tx=db.transaction("images","readwrite");tx.objectStore("images").put(draft,"draft");tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);});}finally{db.close();}
 }
 
 async function persistLastImage(file: File | null): Promise<void> {
@@ -51,12 +55,14 @@ async function persistLastImage(file: File | null): Promise<void> {
 export function ImageSessionProvider({ children }: { children: React.ReactNode }) {
   const [file, updateFile] = useState<File | null>(null);
   const editorDraft = useRef<EditorDraft | null>(null);
+  const [ready,setReady]=useState(false);
+  const saveDraft=useCallback(async (draft:EditorDraft)=>{editorDraft.current=draft;await persistDraft(draft);},[]);
   const chosenByUser = useRef(false);
   useEffect(() => {
     let active = true;
-    readLastImage().then(saved => {
-      if (active && !chosenByUser.current && saved) updateFile(saved);
-    }).catch(() => { /* Persistence is optional in private browsing. */ });
+    readLastSession().then(saved => {
+      if (active && !chosenByUser.current) { editorDraft.current=saved.draft;updateFile(saved.file); }
+    }).catch(() => { /* Persistence is optional in private browsing. */ }).finally(()=>{if(active)setReady(true);});
     return () => { active = false; };
   }, []);
   function setFile(next: File | null) {
@@ -64,7 +70,7 @@ export function ImageSessionProvider({ children }: { children: React.ReactNode }
     updateFile(next);
     void persistLastImage(next).catch(() => { /* Continue with the in-memory session if storage is full. */ });
   }
-  return <ImageContext.Provider value={{ file, setFile, editorDraft }}>{children}</ImageContext.Provider>;
+  return <ImageContext.Provider value={{ file, setFile, editorDraft, saveDraft }}>{ready ? children : <main className="container" aria-busy="true">Abrindo seu projeto…</main>}</ImageContext.Provider>;
 }
 
 export function useImageSession(): Session {

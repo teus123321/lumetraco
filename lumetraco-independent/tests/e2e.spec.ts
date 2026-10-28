@@ -156,3 +156,27 @@ test("cancelamento encerra worker e permite retomar", async ({ page }) => {
   await page.getByRole("button", { name: "Retomar processamento" }).click();
   await expect(page.getByText("Vetor pronto")).toBeVisible({ timeout: 30000 });
 });
+
+test("projeto mantém estilo, regiões e histórico após recarregar", async ({page})=>{
+ await openExample(page);
+ await page.getByRole("tab",{name:"Regiões"}).click();await page.locator("#select-region").selectOption("0");
+ await page.getByRole("button",{name:"Remover região do vetor"}).click();await page.getByRole("button",{name:"Corte",exact:true}).click();
+ await expect(page.getByText("Projeto salvo neste navegador")).toBeVisible();await page.reload();
+ await expect(page.getByText("Vetor pronto")).toBeVisible();await expect(page.getByLabel("Estilo de desenho")).toHaveValue("stroke");
+ await page.getByRole("tab",{name:"Regiões"}).click();await page.locator("#select-region").selectOption("0");await expect(page.getByRole("button",{name:"Restaurar região",exact:true})).toBeVisible();
+ await page.getByRole("button",{name:"Desfazer",exact:true}).click();await expect(page.getByLabel("Estilo de desenho")).toHaveValue("fill");
+});
+test("unir regiões altera geometria e pode ser desfeito",async({page})=>{
+ await openExample(page);const before=await page.locator(".status-detail").innerText();
+ await page.getByRole("tab",{name:"Regiões"}).click();
+ for(const index of ['0','1']){await page.locator("#select-region").selectOption(index);await page.getByLabel("Incluir na união").check();}
+ await page.getByRole("button",{name:"Unir 2 regiões"}).click();await expect(page.locator(".status-detail")).not.toHaveText(before);
+ await page.getByRole("button",{name:"Desfazer",exact:true}).click();await expect(page.locator(".status-detail")).toHaveText(before);
+});
+test("desfazer restaura parâmetros e recorte",async({page})=>{
+ await openExample(page);const before=await page.locator(".status-detail").innerText();
+ await page.getByRole("tab",{name:"Traçado"}).click();await page.getByLabel("Quantidade de cores").focus();await page.keyboard.press("ArrowRight");await expect(page.getByText("Vetor pronto")).toBeVisible();
+ await page.getByRole("button",{name:"Desfazer",exact:true}).click();await expect(page.getByLabel("Quantidade de cores")).toHaveValue("10");await expect(page.locator(".status-detail")).toHaveText(before);
+ await page.getByRole("button",{name:"Recortar",exact:true}).click();await page.getByLabel("Largura (%)").fill("50");await page.getByRole("button",{name:"Aplicar recorte"}).click();await expect(page.getByText("Vetor pronto")).toBeVisible();
+ await page.getByRole("button",{name:"Desfazer",exact:true}).click();await expect(page.locator(".editor-breadcrumb strong")).not.toContainText("recorte");await expect(page.locator(".status-detail")).toHaveText(before);
+});

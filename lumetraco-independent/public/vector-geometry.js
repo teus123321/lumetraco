@@ -3,7 +3,7 @@
   "use strict";
   const n = v => Math.round(v * 1000) / 1000;
   const point = (loop, i) => [loop[(i * 2 + loop.length) % loop.length], loop[(i * 2 + 1 + loop.length) % loop.length]];
-  function ellipse(loop, tolerance) {
+  function ellipseAligned(loop, tolerance) {
     if (loop.length < 16) return null;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (let i = 0; i < loop.length; i += 2) { minX = Math.min(minX, loop[i]); maxX = Math.max(maxX, loop[i]); minY = Math.min(minY, loop[i+1]); maxY = Math.max(maxY, loop[i+1]); }
@@ -16,19 +16,36 @@
       // Check vertices AND chord midpoints: rejects rectangles and coarse polygons.
       for (const p of [a,[(a[0]+b[0])/2,(a[1]+b[1])/2]]) {
         const error = Math.abs(Math.hypot((p[0]-cx)/rx,(p[1]-cy)/ry)-1)*Math.min(rx,ry);
-        if (error > Math.min(0.8, tolerance)) return null;
+        if (error > Math.min(1.2, tolerance)) return null;
       }
     }
     if (Math.abs(Math.abs(area/2)/(Math.PI*rx*ry)-1) > 0.04) return null;
     const k = 0.552284749831, s = area > 0 ? 1 : -1;
     return [['M',cx+rx,cy],['C',cx+rx,cy+s*k*ry,cx+k*rx,cy+s*ry,cx,cy+s*ry],['C',cx-k*rx,cy+s*ry,cx-rx,cy+s*k*ry,cx-rx,cy],['C',cx-rx,cy-s*k*ry,cx-k*rx,cy-s*ry,cx,cy-s*ry],['C',cx+k*rx,cy-s*ry,cx+rx,cy-s*k*ry,cx+rx,cy],['Z']];
   }
+  function ellipse(loop,tolerance){
+    const aligned=ellipseAligned(loop,tolerance);if(aligned)return aligned;
+    if(loop.length<24)return null;
+    let area=0,mx=0,my=0,xx=0,yy=0,xy=0;
+    for(let i=0;i<loop.length/2;i++){const [x,y]=point(loop,i),[u,v]=point(loop,i+1),cross=x*v-u*y;area+=cross;mx+=(x+u)*cross;my+=(y+v)*cross;xx+=(x*x+x*u+u*u)*cross;yy+=(y*y+y*v+v*v)*cross;xy+=(2*x*y+x*v+u*y+2*u*v)*cross;}
+    if(Math.abs(area)<1)return null;
+    const cx=mx/(3*area),cy=my/(3*area),vx=xx/(6*area)-cx*cx,vy=yy/(6*area)-cy*cy,cov=xy/(12*area)-cx*cy;
+    const angle=.5*Math.atan2(2*cov,vx-vy),cos=Math.cos(angle),sin=Math.sin(angle),spread=Math.hypot(vx-vy,2*cov);
+    const rx=2*Math.sqrt(Math.max(0,(vx+vy+spread)/2)),ry=2*Math.sqrt(Math.max(0,(vx+vy-spread)/2));
+    if(ry<5||Math.abs(Math.abs(area/2)/(Math.PI*rx*ry)-1)>.04)return null;
+    for(let i=0;i<loop.length/2;i++){const a=point(loop,i),b=point(loop,i+1);for(const p of [a,[(a[0]+b[0])/2,(a[1]+b[1])/2]]){const x=p[0]-cx,y=p[1]-cy;const err=Math.abs(Math.hypot((x*cos+y*sin)/rx,(-x*sin+y*cos)/ry)-1)*ry;if(err>Math.min(1.2,tolerance))return null;}}
+    const k=.552284749831,direction=area>0?1:-1,transform=(x,y)=>[n(cx+x*cos-y*sin),n(cy+x*sin+y*cos)];
+    const out=[['M',...transform(rx,0)]];
+    for(let i=0;i<4;i++){const a=direction*i*Math.PI/2,b=direction*(i+1)*Math.PI/2;
+      out.push(['C',...transform(rx*(Math.cos(a)-direction*k*Math.sin(a)),ry*(Math.sin(a)+direction*k*Math.cos(a))),...transform(rx*(Math.cos(b)+direction*k*Math.sin(b)),ry*(Math.sin(b)-direction*k*Math.cos(b))),...transform(rx*Math.cos(b),ry*Math.sin(b))]);}
+    out.push(['Z']);return out;
+  }
   function loopCommands(loop, options = {}) {
     const count = loop.length/2;
     if (count < 3) return [];
     const tolerance = options.tolerance ?? 0.65;
     if (options.curves !== false && !options.rounded) {
-      const fitted = ellipse(loop, tolerance);
+      const fitted = ellipse(loop, Math.max(1.2, tolerance));
       if (fitted) return fitted.map(c => c.map((v,i) => i ? n(v) : v));
     }
     const sections = [];

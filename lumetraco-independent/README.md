@@ -1,3 +1,5 @@
+> Atualização atual: [bordas compartilhadas, recursos e limites](docs/EVOLUCAO-2026-10-28.md).
+
 > Atualização integrada: [motor/editor e comparação funcional](docs/EVOLUCAO-2026-10-27.md) · [validação](docs/VALIDACAO-2026-10-27.md). Os relatórios anteriores descrevem versões anteriores.
 
 # LumeTraço — estúdio independente de vetorização
@@ -13,7 +15,7 @@ Uma aplicação gratuita para uso pessoal que converte imagens raster em caminho
 - Editor com comparação antes/depois, zoom, fundos, paleta, detalhe e suavização.
 - Exportação gratuita SVG, PNG, PDF, EPS e DXF (DXF somente contornos).
 - Conteúdo e navegação em português: início, guia, sobre e editor.
-- Sem conta, pagamentos, anúncios, API remota ou banco de dados no servidor. O último arquivo pode ser mantido localmente no IndexedDB do navegador para recuperar o editor após atualizar a página.
+- Sem conta, pagamentos, anúncios, API remota ou banco de dados no servidor. O arquivo, documento, edições e histórico são salvos no IndexedDB para recuperar o editor após atualizar a página.
 
 ## Executar
 
@@ -36,7 +38,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-A suíte atual inclui 14 testes para o motor e ferramentas de edição. Os testes E2E salvam capturas de 390, 768 e 1440 px em `docs/screenshots/`, ao executar a aplicação local.
+A suíte atual inclui 29 testes para o motor e ferramentas de edição. Os testes E2E salvam capturas de 390, 768 e 1440 px em `docs/screenshots/`, ao executar a aplicação local.
 
 ## Arquitetura
 
@@ -66,15 +68,12 @@ Nenhuma licença open source foi escolhida ainda: **não adicione uma licença s
 Os arquivos `src/app/favicon.ico`, `src/app/icon.svg` e `src/app/apple-icon.png` fornecem o favicon e o ícone para dispositivos. Em desenvolvimento, após adicionar os arquivos, atualize `http://localhost:3000` com Ctrl+F5 para substituir o ícone antigo armazenado em cache.
 
 
-## Editor v2 — ferramentas independentes (27/10/2026)
+## Editor atual
 
-- Painel **Paleta**: recolorir tons inteiros, remover cores e remover fundo provável.
-- Painel **Regiões**: clicar diretamente nas formas vetoriais para selecionar, recolorir, arredondar cantos SVG e ocultar/restaurar formas específicas.
-- Histórico: desfazer e refazer edições com botões ou Ctrl+Z / Ctrl+Shift+Z.
-- Pré-recorte por coordenadas, com atualização do arquivo local.
-- Perfis de exportação: Arte, Corte e Gravação; preenchimento ou contornos.
-- Cores, detalhes de contorno, suavização e resolução de análise.
+- Paleta automática e manual, recoloração, remoção de fundo e opacidade por região.
+- Bordas compartilhadas, união de regiões e arestas únicas para corte.
+- Comparação, sobreposição de contornos, zoom, arraste e pré-recorte.
+- Desfazer/refazer parâmetros, recorte, estilos e geometria; recuperação do projeto ao recarregar.
+- Curvas cúbicas, elipses rotacionadas, exportação em cinco formatos e escala de saída.
 
-**Não é um clone integral do Vectorizer.AI:** não utiliza IA proprietária nem reproduz a reconstrução de primitivas, correção subpixel ou edição avançada de nós. O arredondamento de cantos em SVG e PNG usa aproximação simples; EPS/PDF/DXF usam os contornos lineares subjacentes.
-
-Para executar o build completo, instale dependências com `npm install` e rode `npm run build`. A versão v2 passou nos testes isolados do motor e serializador SVG, mas a compilação Next.js e os fluxos E2E não puderam ser executados aqui.
+Os relatórios datados descrevem a revisão testada naquela data. A matriz atual e as diferenças que ainda existem em relação à referência estão no [relatório de 28/10](docs/EVOLUCAO-2026-10-28.md).
