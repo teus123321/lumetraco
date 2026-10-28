@@ -182,3 +182,11 @@ button,select,input {font:inherit;} button{cursor:pointer;} button:disabled {cur
 .crop-actions{display:flex;justify-content:flex-end;gap:9px;align-items:center}.crop-actions>button:first-child{background:transparent;border:0;padding:9px}
 @media(max-width:810px){.editor-layout{grid-template-columns:1fr}.editor-panel{min-height:initial}.editor-palette{max-height:340px}}
 @media(max-width:600px){.editor-extra-toolbar{align-items:stretch}.editor-extra-toolbar button{font-size:10px;padding:7px 8px}.editor-topbar-actions{gap:5px}.editor-topbar-actions .btn{font-size:10px;padding:7px}.crop-grid{grid-template-columns:repeat(2,1fr)}}
+
+.vector-viewport {width:100%;height:100%;overflow:auto;overscroll-behavior:contain;}
+.vector-viewport-inner {display:flex;align-items:center;justify-content:center;}
+.vector-viewport.is-panning {cursor:grab;touch-action:none;user-select:none;}
+.vector-viewport.is-panning:active {cursor:grabbing;}
+.vector-viewport .viewer-canvas {background:transparent;}
+.editor-extra-toolbar {flex-wrap:wrap;gap:8px;}
+.processing-overlay button {pointer-events:auto;line-height:1.4;}

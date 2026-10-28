@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test:engine": "node --test tests/engine.test.cjs tests/editor.test.cjs",
+    "test:engine": "node --test tests/engine.test.cjs tests/editor.test.cjs tests/geometry.test.cjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {

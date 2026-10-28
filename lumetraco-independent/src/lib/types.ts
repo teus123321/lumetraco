@@ -1,5 +1,6 @@
-export type VectorOptions = { colors: number; detail: number; smoothing: number; resolution: number };
-export type VectorPath = { color: string; loops: number[][] };
+import type { Command } from "../../public/vector-geometry";
+export type VectorOptions = { colors: number; detail: number; smoothing: number; resolution: number; curves?: boolean };
+export type VectorPath = { color: string; loops: number[][]; commands?: Command[]; opacity?: number };
 export type VectorDocument = {
   svg: string;
   paths: VectorPath[];
@@ -8,10 +9,11 @@ export type VectorDocument = {
   originalWidth: number;
   originalHeight: number;
   totalLoops: number;
+  nodeCount?: number;
   paletteSize: number;
   drawStyle?: "fill" | "stroke";
   strokeWidth?: number;
   strokeColor?: string;
 };
-export const DEFAULT_OPTIONS: VectorOptions = { colors: 10, detail: 0.85, smoothing: 1, resolution: 340 };
+export const DEFAULT_OPTIONS: VectorOptions = { colors: 10, detail: 0.85, smoothing: 1, resolution: 460, curves: true };
 export type VectorFormat = "svg" | "png" | "pdf" | "eps" | "dxf";

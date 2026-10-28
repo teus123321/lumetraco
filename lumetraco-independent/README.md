@@ -1,3 +1,5 @@
+> Atualização integrada: [motor/editor e comparação funcional](docs/EVOLUCAO-2026-10-27.md) · [validação](docs/VALIDACAO-2026-10-27.md). Os relatórios anteriores descrevem versões anteriores.
+
 # LumeTraço — estúdio independente de vetorização
 
 Uma aplicação gratuita para uso pessoal que converte imagens raster em caminhos vetoriais. **Identidade visual e interface próprias**, em português, com processamento local. Não depende de nenhum serviço comercial de vetorização.

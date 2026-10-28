@@ -6,3 +6,8 @@ node_modules/
 .DS_Store
 playwright-report/
 test-results/
+# Reproducible intermediate benchmark renders and full E2E screenshot suites
+docs/benchmark/*-input.png
+docs/benchmark/*-before.svg
+docs/benchmark/*-after.svg
+docs/screenshots/

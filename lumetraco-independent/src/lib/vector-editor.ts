@@ -1,3 +1,4 @@
+import { pathCommands, toSvg } from "../../public/vector-geometry";
 import type { VectorDocument, VectorPath } from "./types";
 
 export type RegionEdit = { color?: string; hidden?: boolean; rounded?: boolean };
@@ -15,38 +16,8 @@ export function signedArea(loop: number[]): number {
   return sum / 2;
 }
 
-function roundedPath(points: number[], amount: number): string {
-  const count = points.length / 2;
-  if (count < 3) return "";
-  const norm = (v: number) => Number(v.toFixed(3));
-  if (amount <= 0) {
-    let result = `M ${points[0]} ${points[1]}`;
-    for (let i = 1; i < count; i++) result += ` L ${points[i * 2]} ${points[i * 2 + 1]}`;
-    return result + " Z";
-  }
-  const section = (i: number) => {
-    const previous = (i - 1 + count) % count, next = (i + 1) % count;
-    const x = points[i * 2], y = points[i * 2 + 1];
-    const px = points[previous * 2], py = points[previous * 2 + 1];
-    const nx = points[next * 2], ny = points[next * 2 + 1];
-    return {
-      ax: norm(x + (px - x) * amount), ay: norm(y + (py - y) * amount),
-      bx: norm(x + (nx - x) * amount), by: norm(y + (ny - y) * amount),
-      x, y
-    };
-  };
-  const first = section(0);
-  let d = `M ${first.bx} ${first.by}`;
-  for (let i = 1; i < count; i++) {
-    const t = section(i);
-    d += ` L ${t.ax} ${t.ay} Q ${t.x} ${t.y} ${t.bx} ${t.by}`;
-  }
-  d += ` L ${first.ax} ${first.ay} Q ${first.x} ${first.y} ${first.bx} ${first.by} Z`;
-  return d;
-}
-
 export function pathData(path: VectorPath, rounded = false, radius = 0.22): string {
-  return path.loops.map(loop => roundedPath(loop, rounded ? Math.max(0.02, Math.min(0.45, radius)) : 0)).join(" ");
+  return toSvg(pathCommands(path, { rounded, radius, curves: false }));
 }
 
 export function effectiveColor(path: VectorPath, edit?: RegionEdit): string {
@@ -57,7 +28,7 @@ export function effectiveColor(path: VectorPath, edit?: RegionEdit): string {
 export function renderVector(source: VectorDocument, edits: RegionEdits, style: ExportStyle): VectorDocument {
   const paths = source.paths.flatMap((path, index) => {
     if (edits[index]?.hidden) return [];
-    return [{ color: effectiveColor(path, edits[index]), loops: path.loops }];
+    return [{ ...path, color: effectiveColor(path, edits[index]), commands: pathCommands(path, { rounded: Boolean(edits[index]?.rounded), radius: style.cornerRadius, curves: false }) }];
   });
   const svgPaths = source.paths.flatMap((path, index) => {
     const edit = edits[index];
@@ -67,10 +38,10 @@ export function renderVector(source: VectorDocument, edits: RegionEdits, style: 
     const color = effectiveColor(path, edit);
     const fill = style.drawStyle === "fill" ? color : "none";
     const stroke = style.drawStyle === "stroke" ? style.strokeColor : "none";
-    return [`<path data-region="${index}" d="${d}" fill="${fill}" fill-rule="evenodd" stroke="${stroke}" stroke-width="${style.strokeWidth}" stroke-linecap="round" stroke-linejoin="round"/>`];
+    return [`<path data-region="${index}" d="${d}" fill="${fill}" fill-rule="evenodd" opacity="${path.opacity ?? 1}" stroke="${stroke}" stroke-width="${style.strokeWidth}" stroke-linecap="round" stroke-linejoin="round"/>`];
   }).join("\n");
   const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${source.originalWidth}" height="${source.originalHeight}" viewBox="0 0 ${source.width} ${source.height}">\n${svgPaths}\n</svg>`;
-  return { ...source, paths, svg, totalLoops: paths.reduce((n, p) => n + p.loops.length, 0), paletteSize: new Set(paths.map(p => p.color)).size, drawStyle: style.drawStyle, strokeWidth: style.strokeWidth, strokeColor: style.strokeColor };
+  return { ...source, paths, svg, nodeCount: paths.reduce((n,p) => n + (p.commands?.filter(c => c[0] !== "Z").length ?? 0), 0), totalLoops: paths.reduce((n, p) => n + p.loops.length, 0), paletteSize: new Set(paths.map(p => p.color)).size, drawStyle: style.drawStyle, strokeWidth: style.strokeWidth, strokeColor: style.strokeColor };
 }
 
 /** Helper for manual region selection, not pixel sampling. */
@@ -84,4 +55,24 @@ export function mostLikelyBackground(paths: VectorPath[]): string | null {
   let color: string | null = null, area = 0;
   for (const [key, value] of totals) { if (value > area) { color = key; area = value; } }
   return color;
+}
+
+/** Only remove connected regions reaching the image border, never all matching pixels. */
+export function backgroundRegions(doc: VectorDocument, edits: RegionEdits): number[] {
+  const scores = new Map<string, number>();
+  const candidates: { index: number; color: string; score: number }[] = [];
+  doc.paths.forEach((path, index) => {
+    if (edits[index]?.hidden) return;
+    let score = 0;
+    for (const loop of path.loops) for (let i = 0; i < loop.length; i += 2) {
+      const j = (i + 2) % loop.length;
+      if ((loop[i] === 0 && loop[j] === 0) || (loop[i] === doc.width && loop[j] === doc.width) || (loop[i+1] === 0 && loop[j+1] === 0) || (loop[i+1] === doc.height && loop[j+1] === doc.height)) score += Math.hypot(loop[i]-loop[j],loop[i+1]-loop[j+1]);
+    }
+    if (score > 0) {
+      const color = effectiveColor(path, edits[index]);
+      candidates.push({ index, color, score }); scores.set(color, (scores.get(color) || 0) + score);
+    }
+  });
+  const color = [...scores].sort((a,b) => b[1]-a[1])[0]?.[0];
+  return candidates.filter(c => c.color === color).map(c => c.index);
 }

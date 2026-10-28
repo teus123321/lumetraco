@@ -19,7 +19,7 @@ test('solid input produces one genuinely vector rectangle', () => {
   assert.doesNotMatch(doc.svg, /<image|data:image/);
 });
 test('transparent area remains transparent', () => {
-  const doc=image(10,10,(x,y)=> x<5 ? [0,0,0,0] : [220,40,40,255]);
+  const doc=image(10,10,(x)=> x<5 ? [0,0,0,0] : [220,40,40,255]);
   assert.equal(doc.paletteSize,1);
   assert.equal(doc.totalLoops,1);
   assert.doesNotMatch(doc.svg, /<rect[^>]*fill="white"/);

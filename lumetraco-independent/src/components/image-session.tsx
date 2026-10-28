@@ -1,7 +1,11 @@
 "use client";
+import type { VectorDocument, VectorOptions } from "@/lib/types";
+import type { ExportStyle, RegionEdits } from "@/lib/vector-editor";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
-type Session = { file: File | null; setFile: (file: File | null) => void };
+export type EditorHistory = { edits: RegionEdits; exportStyle: ExportStyle };
+export type EditorDraft = { file: File; sourceDoc: VectorDocument; options: VectorOptions; edits: RegionEdits; exportStyle: ExportStyle; undoStack: EditorHistory[]; redoStack: EditorHistory[] };
+type Session = { file: File | null; setFile: (file: File | null) => void; editorDraft: React.RefObject<EditorDraft | null> };
 type StoredFile = { name: string; type: string; data: Blob; lastModified: number };
 const ImageContext = createContext<Session | null>(null);
 
@@ -46,6 +50,7 @@ async function persistLastImage(file: File | null): Promise<void> {
 
 export function ImageSessionProvider({ children }: { children: React.ReactNode }) {
   const [file, updateFile] = useState<File | null>(null);
+  const editorDraft = useRef<EditorDraft | null>(null);
   const chosenByUser = useRef(false);
   useEffect(() => {
     let active = true;
@@ -59,7 +64,7 @@ export function ImageSessionProvider({ children }: { children: React.ReactNode }
     updateFile(next);
     void persistLastImage(next).catch(() => { /* Continue with the in-memory session if storage is full. */ });
   }
-  return <ImageContext.Provider value={{ file, setFile }}>{children}</ImageContext.Provider>;
+  return <ImageContext.Provider value={{ file, setFile, editorDraft }}>{children}</ImageContext.Provider>;
 }
 
 export function useImageSession(): Session {

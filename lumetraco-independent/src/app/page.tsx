@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDownRight, ArrowRight, Check, Dot, MoveUpRight, Layers, LockKeyhole, Paintbrush, PencilRuler, Sparkles, WandSparkles } from "lucide-react";
+import { ArrowDownRight, ArrowRight, Check, MoveUpRight, Layers, LockKeyhole, Paintbrush, PencilRuler, Sparkles, WandSparkles } from "lucide-react";
 import { UploadZone } from "@/components/upload-zone";
 
 export default function HomePage() {

@@ -1,6 +1,9 @@
 /* Independent, deterministic color-region tracing engine. No remote API, no proprietary model. */
 (function (root) {
   "use strict";
+  if (typeof importScripts === "function") importScripts("/vector-geometry.js", "/vendor/fit-curve.js");
+  const geometry = typeof module !== "undefined" && module.exports ? require("./vector-geometry.js") : root.VectorGeometry;
+  const fitCurve = typeof module !== "undefined" && module.exports ? require("./vendor/fit-curve.js") : root.fitCurve;
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const sq = (a, b) => (a - b) * (a - b);
   function paletteAndLabels(data, w, h, k, smoothing) {
@@ -17,6 +20,8 @@
             for (let yy = -1; yy <= 1; yy++) for (let xx = -1; xx <= 1; xx++) {
               const z = ((y + yy) * w + x + xx) * 4;
               if (prev[z + 3] < 16) continue;
+              // Edge-aware averaging avoids inventing intermediate colors across strong boundaries.
+              if (sq(prev[z],prev[index]) + sq(prev[z+1],prev[index+1]) + sq(prev[z+2],prev[index+2]) > 48 * 48) continue;
               total += prev[z + c] * (xx === 0 && yy === 0 ? 4 : 1);
               denom += xx === 0 && yy === 0 ? 4 : 1;
             }
@@ -29,7 +34,7 @@
     const samples = [];
     for (let i = 0; i < n; i += step) {
       const p = i * 4;
-      if (channels[p + 3] >= 16) samples.push([channels[p], channels[p + 1], channels[p + 2]]);
+      if (channels[p + 3] >= 16) samples.push([channels[p], channels[p + 1], channels[p + 2], channels[p + 3]]);
     }
     if (!samples.length) return { colors: [], labels: new Int16Array(n).fill(-1) };
     // Farthest-point seeding avoids random nonreproducible outputs.
@@ -40,7 +45,7 @@
       const last = colors[colors.length - 1];
       for (let i = 0; i < samples.length; i++) {
         const s = samples[i];
-        const d = sq(s[0], last[0]) + sq(s[1], last[1]) + sq(s[2], last[2]);
+        const d = sq(s[0], last[0]) + sq(s[1], last[1]) + sq(s[2], last[2]) + sq(s[3], last[3]);
         if (d < distances[i]) distances[i] = d;
         if (distances[i] > farthest) { farthest = distances[i]; candidate = i; }
       }
@@ -48,19 +53,19 @@
       colors.push([...samples[candidate]]);
     }
     for (let iteration = 0; iteration < 7; iteration++) {
-      const totals = colors.map(() => [0, 0, 0, 0]);
+      const totals = colors.map(() => [0, 0, 0, 0, 0]);
       for (const s of samples) {
         let nearest = 0, best = Infinity;
         for (let j = 0; j < colors.length; j++) {
           const c = colors[j];
-          const d = sq(s[0], c[0]) + sq(s[1], c[1]) + sq(s[2], c[2]);
+          const d = sq(s[0], c[0]) + sq(s[1], c[1]) + sq(s[2], c[2]) + sq(s[3], c[3]);
           if (d < best) { best = d; nearest = j; }
         }
-        const b = totals[nearest]; b[0] += s[0]; b[1] += s[1]; b[2] += s[2]; b[3]++;
+        const b = totals[nearest]; b[0] += s[0]; b[1] += s[1]; b[2] += s[2]; b[3] += s[3]; b[4]++;
       }
       colors.forEach((c, i) => {
         const t = totals[i];
-        if (t[3]) for (let j = 0; j < 3; j++) c[j] = Math.round(t[j] / t[3]);
+        if (t[4]) for (let j = 0; j < 4; j++) c[j] = Math.round(t[j] / t[4]);
       });
     }
     const labels = new Int16Array(n).fill(-1);
@@ -70,7 +75,7 @@
       let nearest = 0, best = Infinity;
       for (let j = 0; j < colors.length; j++) {
         const c = colors[j];
-        const d = sq(channels[p], c[0]) + sq(channels[p + 1], c[1]) + sq(channels[p + 2], c[2]);
+        const d = sq(channels[p], c[0]) + sq(channels[p + 1], c[1]) + sq(channels[p + 2], c[2]) + sq(channels[p + 3], c[3]);
         if (d < best) { best = d; nearest = j; }
       }
       labels[i] = nearest;
@@ -81,7 +86,30 @@
       const i = y * w + x;
       if (old[i] === -1) continue;
       const neighbors = [old[i - 1], old[i + 1], old[i - w], old[i + w]];
-      if (neighbors.every(v => v === neighbors[0] && v >= 0) && old[i] !== neighbors[0]) labels[i] = neighbors[0];
+      if (smoothing > 0 && neighbors.every(v => v === neighbors[0] && v >= 0) && old[i] !== neighbors[0]) labels[i] = neighbors[0];
+    }
+    // Absorb tiny connected islands into a neighboring color, never into/out of transparency.
+    // Keep this optional: one-pixel artwork is meaningful with noise reduction disabled.
+    if (smoothing > 0) {
+      const visited = new Uint8Array(n), queue = new Int32Array(n);
+      const snapshot = new Int16Array(labels), minimum = smoothing === 1 ? 4 : 12;
+      for (let seed = 0; seed < n; seed++) {
+        if (visited[seed] || snapshot[seed] < 0) continue;
+        const label = snapshot[seed]; let head = 0, tail = 1;
+        queue[0] = seed; visited[seed] = 1;
+        const border = new Map();
+        while (head < tail) {
+          const i = queue[head++], x = i % w;
+          for (const j of [x ? i-1 : -1, x+1<w ? i+1 : -1, i-w, i+w]) {
+            if (j < 0 || j >= n || snapshot[j] < 0) continue;
+            if (snapshot[j] === label) { if (!visited[j]) { visited[j]=1; queue[tail++]=j; } }
+            else border.set(snapshot[j], (border.get(snapshot[j]) || 0)+1);
+          }
+        }
+        if (tail > minimum || !border.size) continue;
+        const candidate = [...border].sort((a,b)=>b[1]-a[1] || a[0]-b[0])[0][0];
+        for (let i=0;i<tail;i++) labels[queue[i]]=candidate;
+      }
     }
     return { colors, labels };
   }
@@ -188,9 +216,50 @@
     }
     return positives.map(({color, loops}) => ({color, loops}));
   }
+  function fitLoop(loop, tolerance, enabled) {
+    const fallback = geometry.loopCommands(loop, {curves:enabled,tolerance});
+    if (!enabled || loop.length < 12 || fallback.length === 6 && fallback.filter(c=>c[0]==="C").length === 4) return fallback;
+    const points = [];
+    for (let i=0;i<loop.length;i+=2) {
+      const j=(i+2)%loop.length, length=Math.hypot(loop[j]-loop[i],loop[j+1]-loop[i+1]), steps=Math.max(1,Math.ceil(length));
+      for (let k=0;k<steps;k++) points.push([loop[i]+(loop[j]-loop[i])*k/steps,loop[i+1]+(loop[j+1]-loop[i+1])*k/steps]);
+    }
+    // Use a wider tangent window so single raster steps are not mistaken for design corners.
+    const corners=[]; const count=points.length, window=4;
+    for(let i=0;i<count;i++) {
+      const p=points[i],a=points[(i-window+count)%count],b=points[(i+window)%count];
+      const u=[p[0]-a[0],p[1]-a[1]],v=[b[0]-p[0],b[1]-p[1]];
+      const cosine=(u[0]*v[0]+u[1]*v[1])/(Math.hypot(...u)*Math.hypot(...v)||1);
+      if(cosine<0.5 && (!corners.length || i-corners.at(-1)>window)) corners.push(i);
+    }
+    if(corners.length>1 && count-corners.at(-1)+corners[0]<=window)corners.pop();
+    if(!corners.length)corners.push(0,Math.floor(count/2));
+    else if(corners.length===1)corners.push((corners[0]+Math.floor(count/2))%count);
+    corners.sort((a,b)=>a-b);
+    const commands=[['M',...points[corners[0]]]];
+    for(let c=0;c<corners.length;c++) {
+      const start=corners[c],end=c+1<corners.length?corners[c+1]:corners[0]+count;
+      const segment=[];for(let i=start;i<=end;i++)segment.push(points[i%count]);
+      for(const curve of fitCurve(segment,tolerance*tolerance)) {
+        if(curve.flat().some(v=>!Number.isFinite(v)))return fallback;
+        commands.push(['C',...curve[1],...curve[2],...curve[3]]);
+      }
+    }
+    commands.push(['Z']);
+    // Never expand geometry outside the image's existing contour bounds.
+    const flat=geometry.flatten(commands,.2).flat();
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    for(let i=0;i<loop.length;i+=2){minX=Math.min(minX,loop[i]);maxX=Math.max(maxX,loop[i]);minY=Math.min(minY,loop[i+1]);maxY=Math.max(maxY,loop[i+1]);}
+    for(let i=0;i<flat.length;i+=2)if(flat[i]<minX-tolerance||flat[i]>maxX+tolerance||flat[i+1]<minY-tolerance||flat[i+1]>maxY+tolerance)return fallback;
+    const rounded = commands.map(c=>c.map((v,i)=>i?Math.round(v*1000)/1000:v));
+    // A fit is an optimization, not a mandatory expansion of every short polygon.
+    return geometry.toSvg(rounded).length < geometry.toSvg(fallback).length ? rounded : fallback;
+  }
   function vectorize(input) {
     const w = input.width, h = input.height;
     if (!Number.isInteger(w) || !Number.isInteger(h) || w < 1 || h < 1 || w * h > 350000) throw new Error("Invalid working dimensions");
+    if (!input.pixels || input.pixels.length !== w * h * 4) throw new Error("Buffer de pixels inválido");
+    if (!input.options || ![input.options.colors, input.options.detail, input.options.smoothing].every(Number.isFinite)) throw new Error("Opções de vetorização inválidas");
     const count = clamp(Math.round(input.options.colors), 2, 24);
     const detail = clamp(Number(input.options.detail), 0.15, 3);
     const smoothing = clamp(Math.round(input.options.smoothing), 0, 2);
@@ -200,20 +269,16 @@
     for (let c = 0; c < colors.length; c++) {
       const loops = traceLabel(labels, w, h, c, detail);
       if (!loops.length) continue;
-      const hex = "#" + colors[c].map(v => Math.round(v).toString(16).padStart(2, "0")).join("");
+      const hex = "#" + colors[c].slice(0, 3).map(v => Math.round(v).toString(16).padStart(2, "0")).join("");
       totalLoops += loops.length;
-      paths.push(...editableRegions(hex, loops));
+      paths.push(...editableRegions(hex, loops).map(path => ({ ...path, opacity: colors[c][3] / 255, commands: path.loops.flatMap(loop => fitLoop(loop, Math.min(detail, 0.8), input.options.curves !== false)) })));
     }
     const svgPaths = paths.map(group => {
-      const d = group.loops.map(loop => {
-        let s = "M" + loop[0] + " " + loop[1];
-        for (let i = 2; i < loop.length; i += 2) s += "L" + loop[i] + " " + loop[i + 1];
-        return s + "Z";
-      }).join(" ");
-      return `<path fill="${group.color}" fill-rule="evenodd" d="${d}"/>`;
+      const d = geometry.toSvg(group.commands);
+      return `<path fill="${group.color}" fill-rule="evenodd" opacity="${group.opacity}" d="${d}"/>`;
     }).join("\n");
     const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${input.outputWidth || w}" height="${input.outputHeight || h}" viewBox="0 0 ${w} ${h}">\n${svgPaths}\n</svg>`;
-    return { svg, paths, width: w, height: h, originalWidth: input.outputWidth || w, originalHeight: input.outputHeight || h, totalLoops, paletteSize: new Set(paths.map(path => path.color)).size };
+    return { svg, paths, nodeCount: paths.reduce((sum, p) => sum + p.commands.filter(c => c[0] !== "Z").length, 0), width: w, height: h, originalWidth: input.outputWidth || w, originalHeight: input.outputHeight || h, totalLoops, paletteSize: new Set(paths.map(path => path.color)).size };
   }
   // Node can test this engine without installing any external package.
   if (typeof module !== "undefined" && module.exports) module.exports = { vectorize, traceLabel, simplifyClosed };

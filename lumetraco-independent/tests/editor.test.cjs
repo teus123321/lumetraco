@@ -40,8 +40,8 @@ test('cut preset makes a stroked SVG with no fill', () => {
   assert.match(result.svg, /stroke-width="0.5"/);
 });
 test('rounded region really contains Bézier curves', () => {
-  assert.match(pathData(source.paths[0], true, 0.3), / Q /);
-  assert.doesNotMatch(pathData(source.paths[0], false), / Q /);
+  assert.match(pathData(source.paths[0], true, 0.3), / C /);
+  assert.doesNotMatch(pathData(source.paths[0], false), / C /);
 });
 test('background heuristic uses the largest region', () => {
   assert.equal(mostLikelyBackground(source.paths), '#aabbcc');

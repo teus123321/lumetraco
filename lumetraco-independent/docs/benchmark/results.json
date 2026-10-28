@@ -1,0 +1,104 @@
+[
+  {
+    "fixture": "logo",
+    "before": {
+      "mae": 1.43,
+      "paths": 553,
+      "segments": 2399,
+      "svgBytes": 43328,
+      "milliseconds": 110.4
+    },
+    "after": {
+      "mae": 0.496,
+      "paths": 3,
+      "segments": 269,
+      "svgBytes": 4399,
+      "milliseconds": 236
+    }
+  },
+  {
+    "fixture": "transparent-icon",
+    "before": {
+      "mae": 12.81,
+      "paths": 132,
+      "segments": 686,
+      "svgBytes": 11155,
+      "milliseconds": 36.3
+    },
+    "after": {
+      "mae": 0.182,
+      "paths": 33,
+      "segments": 331,
+      "svgBytes": 6098,
+      "milliseconds": 64.4
+    }
+  },
+  {
+    "fixture": "illustration",
+    "before": {
+      "mae": 1.73,
+      "paths": 346,
+      "segments": 2473,
+      "svgBytes": 34226,
+      "milliseconds": 37.1
+    },
+    "after": {
+      "mae": 1.313,
+      "paths": 9,
+      "segments": 1310,
+      "svgBytes": 20974,
+      "milliseconds": 155.7
+    }
+  },
+  {
+    "fixture": "drawing",
+    "before": {
+      "mae": 4.5,
+      "paths": 2043,
+      "segments": 9399,
+      "svgBytes": 162040,
+      "milliseconds": 29.4
+    },
+    "after": {
+      "mae": 2.599,
+      "paths": 5,
+      "segments": 1274,
+      "svgBytes": 13556,
+      "milliseconds": 147.3
+    }
+  },
+  {
+    "fixture": "photograph",
+    "before": {
+      "mae": 14.26,
+      "paths": 1512,
+      "segments": 9973,
+      "svgBytes": 139863,
+      "milliseconds": 82.6
+    },
+    "after": {
+      "mae": 14.933,
+      "paths": 518,
+      "segments": 6486,
+      "svgBytes": 98770,
+      "milliseconds": 311.5
+    }
+  },
+  {
+    "fixture": "circle",
+    "before": {
+      "mae": 0.539,
+      "paths": 118,
+      "segments": 600,
+      "svgBytes": 9939,
+      "milliseconds": 18.6
+    },
+    "after": {
+      "mae": 0.436,
+      "paths": 54,
+      "segments": 424,
+      "svgBytes": 8555,
+      "milliseconds": 25.6
+    }
+  }
+]
