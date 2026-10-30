@@ -25,7 +25,9 @@
     function walk(first,start){
       const points=[start];let edge=first,p=start;const id=chains.length;
       while(edge.chain<0){edge.chain=id;const q=pointKey(edge.a)===pointKey(p)?edge.b:edge.a;points.push(q);if(junction(q,edge)||pointKey(q)===pointKey(start))break;edge=vertices.get(pointKey(q)).find(x=>x!==edge);p=q;}
-      const closed=pointKey(points[0])===pointKey(points.at(-1));
+      // A chain returning to a junction is a lobe of a larger contour, not
+      // a standalone closed subpath. Inserting Z here closes the parent early.
+      const closed=pointKey(points[0])===pointKey(points.at(-1))&&!junction(start,first);
       let commands;
       if(closed){commands=fitClosed(points.slice(0,-1).flat(),tolerance,curves);}
       else {const reduced=simplify(points,tolerance);commands=[['M',...reduced[0]],...reduced.slice(1).map(p=>['L',...p])];}
@@ -40,7 +42,8 @@
       if(parts.every(p=>p.edge.chain===parts[0].edge.chain)){
         const chain=chains[parts[0].edge.chain];const a=chain.points[0],b=chain.points[1];
         const pos=parts.findIndex(p=>pointKey(p.a)===pointKey(a));const forward=pos>=0&&pointKey(parts[(pos+1)%count].a)===pointKey(b);
-        return forward?chain.commands:reverse(chain.commands);
+        const result=forward?chain.commands:reverse(chain.commands);
+        return result.at(-1)[0]==='Z'?result:[...result,['Z']];
       }
       const start=parts.findIndex((p,i)=>p.edge.chain!==parts[(i+count-1)%count].edge.chain);const out=[];let last=-1;
       for(let j=0;j<count;j++){const p=parts[(start+j)%count],id=p.edge.chain;if(id===last)continue;last=id;const chain=chains[id];const commands=pointKey(p.a)===pointKey(chain.points[0])?chain.commands:reverse(chain.commands);out.push(...(out.length?commands.slice(1):commands));}

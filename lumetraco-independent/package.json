@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev.cjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:engine": "node --test tests/engine.test.cjs tests/editor.test.cjs tests/geometry.test.cjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "benchmark": "node scripts/benchmark.cjs"
   },
   "dependencies": {
     "next": "^15.5.0",

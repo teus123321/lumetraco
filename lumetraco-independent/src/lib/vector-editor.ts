@@ -1,11 +1,12 @@
+import { apply as applyCorners } from "../../public/vector-corners";
 import { unique, union, gapSvg } from "../../public/vector-edges";
 import { pathCommands, toSvg, flatten } from "../../public/vector-geometry";
 import type { VectorDocument, VectorPath } from "./types";
 
-export type RegionEdit = { color?: string; hidden?: boolean; rounded?: boolean; opacity?: number };
+export type RegionEdit = { color?: string; hidden?: boolean; rounded?: boolean; opacity?: number; corners?: Record<number, number> };
 export type RegionEdits = Record<number, RegionEdit>;
 export type DrawStyle = "fill" | "stroke";
-export type ExportStyle = { drawStyle: DrawStyle; strokeWidth: number; strokeColor: string; cornerRadius: number; edgeMode?: boolean; gapFill?: boolean; outputScale?: number; lineTolerance?: number };
+export type ExportStyle = { drawStyle: DrawStyle; strokeWidth: number; strokeColor: string; cornerRadius: number; edgeMode?: boolean; gapFill?: boolean; outputScale?: number; lineTolerance?: number; unit?: "px" | "mm" | "in"; groupByColor?: boolean };
 export const DEFAULT_EXPORT_STYLE: ExportStyle = { drawStyle: "fill", strokeWidth: 1.25, strokeColor: "#152e26", cornerRadius: 0.22, edgeMode: false, gapFill: true, outputScale: 1, lineTolerance: 0.15 };
 
 export function signedArea(loop: number[]): number {
@@ -17,8 +18,12 @@ export function signedArea(loop: number[]): number {
   return sum / 2;
 }
 
-export function pathData(path: VectorPath, rounded = false, radius = 0.22): string {
-  return toSvg(pathCommands(path, { rounded, radius, curves: false }));
+export function editedCommands(path: VectorPath, edit?: RegionEdit, radius = 0.22) {
+  return applyCorners(pathCommands(path, {rounded: Boolean(edit?.rounded), radius, curves:false}), edit?.corners);
+}
+
+export function pathData(path: VectorPath, rounded = false, radius = 0.22, corners?: Record<number,number>): string {
+  return toSvg(editedCommands(path, {rounded,corners},radius));
 }
 
 export function effectiveColor(path: VectorPath, edit?: RegionEdit): string {
@@ -29,12 +34,12 @@ export function effectiveColor(path: VectorPath, edit?: RegionEdit): string {
 export function renderVector(source: VectorDocument, edits: RegionEdits, style: ExportStyle): VectorDocument {
   const paths = source.paths.flatMap((path, index) => {
     if (edits[index]?.hidden) return [];
-    return [{ ...path, color: effectiveColor(path, edits[index]), opacity: edits[index]?.opacity ?? path.opacity ?? 1, commands: pathCommands(path, { rounded: Boolean(edits[index]?.rounded), radius: style.cornerRadius, curves: false }) }];
+    return [{ ...path, color: effectiveColor(path, edits[index]), opacity: edits[index]?.opacity ?? path.opacity ?? 1, commands: editedCommands(path, edits[index], style.cornerRadius) }];
   });
   let svgPaths = source.paths.flatMap((path, index) => {
     const edit = edits[index];
     if (edit?.hidden) return [];
-    const d = pathData(path, Boolean(edit?.rounded), style.cornerRadius);
+    const d = pathData(path, Boolean(edit?.rounded), style.cornerRadius, edit?.corners);
     if (!d) return [];
     const color = effectiveColor(path, edit);
     const fill = style.drawStyle === "fill" ? color : "none";
@@ -45,9 +50,20 @@ export function renderVector(source: VectorDocument, edits: RegionEdits, style: 
   if (style.drawStyle === "fill" && style.gapFill) {
     svgPaths = gapSvg(paths) + "\n" + svgPaths;
   }
+  if (style.groupByColor && !style.edgeMode) {
+    // Group consecutive colors only: never reorder overlapping/transparent shapes.
+    const lines=svgPaths.split("\n"); let last="", grouped="";
+    for(const line of lines){const color=line.match(/fill="(#[a-fA-F0-9]{6})"/)?.[1]??"none";
+      if(color!==last){if(last)grouped+="</g>\n";grouped+=`<g data-color="${color}">\n`;last=color;}
+      grouped+=line+"\n";
+    }
+    svgPaths=grouped+(last?"</g>":"");
+  }
   const outputScale = style.outputScale ?? 1;
-  const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${source.originalWidth * outputScale}" height="${source.originalHeight * outputScale}" viewBox="0 0 ${source.width} ${source.height}">\n${svgPaths}\n</svg>`;
-  return { ...source, paths, svg, originalWidth: source.originalWidth * outputScale, originalHeight: source.originalHeight * outputScale, edgeMode: style.edgeMode, lineTolerance: style.lineTolerance, nodeCount: paths.reduce((n,p) => n + (p.commands?.filter(c => c[0] !== "Z").length ?? 0), 0), totalLoops: paths.reduce((n, p) => n + p.loops.length, 0), paletteSize: new Set(paths.map(p => p.color)).size, drawStyle: style.drawStyle, strokeWidth: style.strokeWidth, strokeColor: style.strokeColor };
+  const unit=style.unit??"px", unitScale=unit==="mm"?25.4/96:unit==="in"?1/96:1;
+  const suffix=unit==="px"?"":unit;
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${source.originalWidth * outputScale * unitScale}${suffix}" height="${source.originalHeight * outputScale * unitScale}${suffix}" viewBox="0 0 ${source.width} ${source.height}">\n${svgPaths}\n</svg>`;
+  return { ...source, paths, svg, originalWidth: source.originalWidth * outputScale, originalHeight: source.originalHeight * outputScale, exportUnit:unit, edgeMode: style.edgeMode, lineTolerance: style.lineTolerance, nodeCount: paths.reduce((n,p) => n + (p.commands?.filter(c => c[0] !== "Z").length ?? 0), 0), totalLoops: paths.reduce((n, p) => n + p.loops.length, 0), paletteSize: new Set(paths.map(p => p.color)).size, drawStyle: style.drawStyle, strokeWidth: style.strokeWidth, strokeColor: style.strokeColor };
 }
 
 /** Helper for manual region selection, not pixel sampling. */
@@ -87,8 +103,8 @@ export function backgroundRegions(doc: VectorDocument, edits: RegionEdits): numb
 export function mergeRegions(source: VectorDocument, edits: RegionEdits, style: ExportStyle, selected: number[]): VectorDocument {
   const indices=[...new Set(selected)].filter(i => source.paths[i] && !edits[i]?.hidden).sort((a,b)=>a-b);
   if(indices.length<2)throw new Error("Selecione pelo menos duas regiões visíveis.");
-  const rendered=source.paths.map((p,i)=>({...p,color:effectiveColor(p,edits[i]),opacity:edits[i]?.opacity??p.opacity??1,commands:pathCommands(p,{rounded:Boolean(edits[i]?.rounded),radius:style.cornerRadius,curves:false})}));
-  if(indices.some(i=>edits[i]?.rounded))throw new Error("Desative o arredondamento manual das regiões antes de unir.");
+  const rendered=source.paths.map((p,i)=>({...p,color:effectiveColor(p,edits[i]),opacity:edits[i]?.opacity??p.opacity??1,commands:editedCommands(p,edits[i],style.cornerRadius)}));
+  if(indices.some(i=>edits[i]?.rounded || Object.values(edits[i]?.corners??{}).some(r=>r>0)))throw new Error("Desative o arredondamento manual das regiões antes de unir.");
   const chosen=indices.map(i=>rendered[i]);
   const commands=union(chosen), merged={...chosen[0],commands,loops:flatten(commands,.05)};
   const paths=rendered.filter((_,i)=>!edits[i]?.hidden&&!indices.includes(i));paths.push(merged);

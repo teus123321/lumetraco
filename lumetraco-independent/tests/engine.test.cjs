@@ -44,7 +44,7 @@ test('output is stable across repeated processing', () => {
   assert.equal(image(28,28,gradient).svg,image(28,28,gradient).svg);
 });
 test('rejects working dimensions above safety limit', () => {
-  assert.throws(()=>vectorize({width:999,height:999,pixels:new Uint8ClampedArray(4),options:{colors:8,detail:1,smoothing:0}}),/Invalid working dimensions/);
+  assert.throws(()=>vectorize({width:1200,height:1200,pixels:new Uint8ClampedArray(4),options:{colors:8,detail:1,smoothing:0}}),/Invalid working dimensions/);
 });
 test('disconnected regions with the same color are independently editable', () => {
   const doc = image(24, 10, (x, y) => ((x >= 2 && x <= 6 && y >= 2 && y <= 7) || (x >= 16 && x <= 20 && y >= 2 && y <= 7)) ? [10, 90, 30, 255] : [0, 0, 0, 0]);
@@ -59,4 +59,13 @@ test('holes remain connected to their containing region', () => {
 });
 test('automatic palette recognizes a small flat palette deterministically',()=>{
  const doc=image(30,12,x=>x<10?[255,0,0,255]:x<20?[0,255,0,255]:[0,0,255,255],{autoColors:true});assert.equal(doc.paletteSize,3);
+});
+
+test('palette includes small features between regular sampling positions',()=>{
+ const doc=image(256,256,(x,y)=>x===1&&y<8?[255,0,0,255]:[255,255,255,255],{colors:2});
+ assert.equal(doc.paletteSize,2);assert.ok(doc.paths.some(p=>p.color==='#ff0000'));
+});
+test('1024px analysis preserves a one-pixel line without upscaling the output',()=>{
+ const doc=image(1024,16,(x)=>x===501?[0,0,0,255]:[255,255,255,255],{colors:2});
+ assert.equal(doc.width,1024);assert.equal(doc.paths.length,3);
 });

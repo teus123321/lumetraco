@@ -18,7 +18,8 @@ Uma aplicação gratuita para uso pessoal que converte imagens raster em caminho
 Requisitos: Node.js 20+ (recomendado 22) e npm.
 
 ```bash
-npm install
+cd lumetraco-independent
+npm ci
 npm run dev
 ```
 
@@ -62,3 +63,7 @@ Nenhuma licença open source foi escolhida ainda: **não adicione uma licença s
 ### Identidade visual e ícones
 
 Os arquivos `src/app/favicon.ico`, `src/app/icon.svg` e `src/app/apple-icon.png` fornecem o favicon e o ícone para dispositivos. Em desenvolvimento, após adicionar os arquivos, atualize `http://localhost:3000` com Ctrl+F5 para substituir o ícone antigo armazenado em cache.
+
+## Atualização de geometria e edição
+
+Consulte [o relatório com testes, comparação e limitações](lumetraco-independent/docs/EVOLUCAO-2026-10-30.md). A aplicação e seu package.json estão em `lumetraco-independent/`.

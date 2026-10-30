@@ -8,7 +8,7 @@
   const edgeOperations = typeof module !== "undefined" && module.exports ? require("./vector-edges.js") : root.VectorEdges;
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const sq = (a, b) => (a - b) * (a - b);
-  function paletteAndLabels(data, w, h, k, smoothing, automatic = false) {
+  function paletteAndLabels(data, w, h, k, smoothing, automatic = false, cleanPalette = false) {
     const n = w * h;
     const channels = new Uint8ClampedArray(data);
     if (smoothing > 0) {
@@ -32,15 +32,36 @@
         }
       }
     }
-    const step = Math.max(1, Math.floor(n / 5200));
-    const samples = [];
-    for (let i = 0; i < n; i += step) {
-      const p = i * 4;
-      if (channels[p + 3] > 0) samples.push([channels[p], channels[p + 1], channels[p + 2], channels[p + 3]]);
+    // Bounded RGBA histogram visits every pixel: regular strides miss thin artwork.
+    // Each cell keeps its actual mean and population (not the quantized bin color).
+    const histogram = new Map();
+    for (let i = 0; i < n; i++) {
+      const p=i*4, r=channels[p], g=channels[p+1], b=channels[p+2], a=channels[p+3];
+      if (!a) continue;
+      const key=(r>>4)<<12 | (g>>4)<<8 | (b>>4)<<4 | (a>>4);
+      let cell=histogram.get(key);
+      if (!cell) { cell=[0,0,0,0,0]; histogram.set(key,cell); }
+      cell[0]+=r;cell[1]+=g;cell[2]+=b;cell[3]+=a;cell[4]++;
     }
+    let samples=[...histogram.values()].map(c=>[c[0]/c[4],c[1]/c[4],c[2]/c[4],c[3]/c[4],c[4]]);
+    // For predominantly flat, opaque artwork, edge antialias shades are not
+    // additional design colors. Learn from interiors, then classify every pixel.
+    // Photos, gradients and alpha artwork retain the full weighted histogram.
+    let opaque=true, flatCount=0; const interiors=new Map();
+    const equal=(p,q)=>channels[p]===channels[q]&&channels[p+1]===channels[q+1]&&channels[p+2]===channels[q+2]&&channels[p+3]===channels[q+3];
+    for(let i=0;i<n;i++)if(channels[i*4+3]!==255){opaque=false;break;}
+    if(opaque)for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
+      const p=(y*w+x)*4;
+      if(equal(p,p-4)&&equal(p,p+4)&&equal(p,p-w*4)&&equal(p,p+w*4)){
+        flatCount++;
+        if(interiors.size<=64){const key=channels[p]*65536+channels[p+1]*256+channels[p+2];
+          const cell=interiors.get(key)||[channels[p],channels[p+1],channels[p+2],255,0];cell[4]++;interiors.set(key,cell);}
+      }
+    }
+    if(cleanPalette && flatCount/n>.7 && interiors.size>1 && interiors.size<=k) samples=[...interiors.values()];
     if (!samples.length) return { colors: [], labels: new Int16Array(n).fill(-1) };
     // Farthest-point seeding avoids random nonreproducible outputs.
-    const colors = [[...samples[0]]];
+    const colors = [samples[0].slice(0,4)];
     const distances = new Float64Array(samples.length).fill(Infinity);
     for (let z = 1; z < Math.min(k, samples.length); z++) {
       let candidate = 0, farthest = -1;
@@ -52,7 +73,7 @@
         if (distances[i] > farthest) { farthest = distances[i]; candidate = i; }
       }
       if (farthest < (automatic ? 24 * 24 : 1)) break;
-      colors.push([...samples[candidate]]);
+      colors.push(samples[candidate].slice(0,4));
     }
     for (let iteration = 0; iteration < 7; iteration++) {
       const totals = colors.map(() => [0, 0, 0, 0, 0]);
@@ -63,7 +84,7 @@
           const d = sq(s[0], c[0]) + sq(s[1], c[1]) + sq(s[2], c[2]) + sq(s[3], c[3]);
           if (d < best) { best = d; nearest = j; }
         }
-        const b = totals[nearest]; b[0] += s[0]; b[1] += s[1]; b[2] += s[2]; b[3] += s[3]; b[4]++;
+        const b = totals[nearest]; b[0] += s[0]*s[4]; b[1] += s[1]*s[4]; b[2] += s[2]*s[4]; b[3] += s[3]*s[4]; b[4] += s[4];
       }
       colors.forEach((c, i) => {
         const t = totals[i];
@@ -259,13 +280,13 @@
   }
   function vectorize(input) {
     const w = input.width, h = input.height;
-    if (!Number.isInteger(w) || !Number.isInteger(h) || w < 1 || h < 1 || w * h > 600000) throw new Error("Invalid working dimensions");
+    if (!Number.isInteger(w) || !Number.isInteger(h) || w < 1 || h < 1 || w * h > 1100000) throw new Error("Invalid working dimensions");
     if (!input.pixels || input.pixels.length !== w * h * 4) throw new Error("Buffer de pixels inválido");
     if (!input.options || ![input.options.colors, input.options.detail, input.options.smoothing].every(Number.isFinite)) throw new Error("Opções de vetorização inválidas");
     const count = input.options.autoColors ? 32 : clamp(Math.round(input.options.colors), 2, 64);
     const detail = clamp(Number(input.options.detail), 0.15, 3);
     const smoothing = clamp(Math.round(input.options.smoothing), 0, 2);
-    const { colors, labels } = paletteAndLabels(input.pixels, w, h, count, smoothing, Boolean(input.options.autoColors));
+    const { colors, labels } = paletteAndLabels(input.pixels, w, h, count, smoothing, Boolean(input.options.autoColors), Boolean(input.options.cleanPalette));
     let paths = [];
     let totalLoops = 0;
     for (let c = 0; c < colors.length; c++) {

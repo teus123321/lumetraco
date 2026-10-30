@@ -1,0 +1,266 @@
+[
+  {
+    "fixture": "logo",
+    "before": {
+      "mae": 0.116,
+      "paths": 257,
+      "segments": 1906,
+      "svgBytes": 74734,
+      "milliseconds": 557.3
+    },
+    "after": {
+      "mae": 0.045,
+      "paths": 234,
+      "segments": 1791,
+      "svgBytes": 69399,
+      "milliseconds": 92.7
+    },
+    "cleanPalette": {
+      "mae": 0.152,
+      "paths": 3,
+      "segments": 29,
+      "svgBytes": 1694,
+      "milliseconds": 30.3
+    }
+  },
+  {
+    "fixture": "transparent-icon",
+    "before": {
+      "mae": 0.032,
+      "paths": 236,
+      "segments": 1460,
+      "svgBytes": 31422,
+      "milliseconds": 56.1
+    },
+    "after": {
+      "mae": 0.065,
+      "paths": 174,
+      "segments": 1138,
+      "svgBytes": 23731,
+      "milliseconds": 20.3
+    },
+    "cleanPalette": {
+      "mae": 0.065,
+      "paths": 174,
+      "segments": 1138,
+      "svgBytes": 23731,
+      "milliseconds": 11.9
+    }
+  },
+  {
+    "fixture": "illustration",
+    "before": {
+      "mae": 0.649,
+      "paths": 407,
+      "segments": 3815,
+      "svgBytes": 137985,
+      "milliseconds": 105.9
+    },
+    "after": {
+      "mae": 0.662,
+      "paths": 674,
+      "segments": 5715,
+      "svgBytes": 213876,
+      "milliseconds": 104.5
+    },
+    "cleanPalette": {
+      "mae": 0.662,
+      "paths": 674,
+      "segments": 5715,
+      "svgBytes": 213876,
+      "milliseconds": 251
+    }
+  },
+  {
+    "fixture": "drawing",
+    "before": {
+      "mae": 0.264,
+      "paths": 883,
+      "segments": 6948,
+      "svgBytes": 257728,
+      "milliseconds": 288
+    },
+    "after": {
+      "mae": 0.261,
+      "paths": 952,
+      "segments": 7301,
+      "svgBytes": 273051,
+      "milliseconds": 346
+    },
+    "cleanPalette": {
+      "mae": 2.102,
+      "paths": 4,
+      "segments": 1055,
+      "svgBytes": 31879,
+      "milliseconds": 171.9
+    }
+  },
+  {
+    "fixture": "photograph",
+    "before": {
+      "mae": 12.573,
+      "paths": 1940,
+      "segments": 17116,
+      "svgBytes": 608277,
+      "milliseconds": 705.8
+    },
+    "after": {
+      "mae": 11.151,
+      "paths": 1953,
+      "segments": 17113,
+      "svgBytes": 609761,
+      "milliseconds": 450.3
+    },
+    "cleanPalette": {
+      "mae": 11.151,
+      "paths": 1953,
+      "segments": 17113,
+      "svgBytes": 609761,
+      "milliseconds": 199.3
+    }
+  },
+  {
+    "fixture": "ellipse",
+    "before": {
+      "mae": 0.057,
+      "paths": 225,
+      "segments": 1413,
+      "svgBytes": 29402,
+      "milliseconds": 41.1
+    },
+    "after": {
+      "mae": 0.062,
+      "paths": 212,
+      "segments": 1346,
+      "svgBytes": 28340,
+      "milliseconds": 9.9
+    },
+    "cleanPalette": {
+      "mae": 0.062,
+      "paths": 212,
+      "segments": 1346,
+      "svgBytes": 28340,
+      "milliseconds": 12.8
+    }
+  },
+  {
+    "fixture": "corners",
+    "before": {
+      "mae": 0.013,
+      "paths": 70,
+      "segments": 438,
+      "svgBytes": 9533,
+      "milliseconds": 24.3
+    },
+    "after": {
+      "mae": 0.007,
+      "paths": 62,
+      "segments": 398,
+      "svgBytes": 8439,
+      "milliseconds": 16.5
+    },
+    "cleanPalette": {
+      "mae": 0.007,
+      "paths": 62,
+      "segments": 398,
+      "svgBytes": 8439,
+      "milliseconds": 16.2
+    }
+  },
+  {
+    "fixture": "small-text",
+    "before": {
+      "mae": 0.105,
+      "paths": 250,
+      "segments": 1646,
+      "svgBytes": 64558,
+      "milliseconds": 41.6
+    },
+    "after": {
+      "mae": 0.099,
+      "paths": 248,
+      "segments": 1638,
+      "svgBytes": 64115,
+      "milliseconds": 17.5
+    },
+    "cleanPalette": {
+      "mae": 0.099,
+      "paths": 248,
+      "segments": 1638,
+      "svgBytes": 64115,
+      "milliseconds": 17.3
+    }
+  },
+  {
+    "fixture": "thin-lines",
+    "before": {
+      "mae": 0.155,
+      "paths": 314,
+      "segments": 2022,
+      "svgBytes": 79863,
+      "milliseconds": 33.2
+    },
+    "after": {
+      "mae": 0.156,
+      "paths": 326,
+      "segments": 2076,
+      "svgBytes": 82162,
+      "milliseconds": 35.3
+    },
+    "cleanPalette": {
+      "mae": 0.156,
+      "paths": 326,
+      "segments": 2076,
+      "svgBytes": 82162,
+      "milliseconds": 19.4
+    }
+  },
+  {
+    "fixture": "adjacent",
+    "before": {
+      "mae": 0,
+      "paths": 161,
+      "segments": 1277,
+      "svgBytes": 48078,
+      "milliseconds": 20
+    },
+    "after": {
+      "mae": 0,
+      "paths": 161,
+      "segments": 1277,
+      "svgBytes": 48078,
+      "milliseconds": 20
+    },
+    "cleanPalette": {
+      "mae": 0.196,
+      "paths": 2,
+      "segments": 322,
+      "svgBytes": 8944,
+      "milliseconds": 8.2
+    }
+  },
+  {
+    "fixture": "circle",
+    "before": {
+      "mae": 0.036,
+      "paths": 256,
+      "segments": 1576,
+      "svgBytes": 33867,
+      "milliseconds": 11
+    },
+    "after": {
+      "mae": 0.056,
+      "paths": 245,
+      "segments": 1513,
+      "svgBytes": 32523,
+      "milliseconds": 9.2
+    },
+    "cleanPalette": {
+      "mae": 0.056,
+      "paths": 245,
+      "segments": 1513,
+      "svgBytes": 32523,
+      "milliseconds": 11.6
+    }
+  }
+]

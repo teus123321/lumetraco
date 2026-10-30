@@ -90,3 +90,45 @@ test('rotated ellipses fit four cubics without accepting rectangles',()=>{
  const loop=flatten(commands,.03)[0];for(let i=0;i<loop.length;i+=2){const x=loop[i]-70,y=loop[i+1]-60;assert.ok(Math.abs(Math.hypot((x*c+y*s)/40,(-x*s+y*c)/17)-1)<.004);}
  const box=[[-40,-17],[40,-17],[40,17],[-40,17]].map(([x,y])=>[70+x*c-y*s,60+x*s+y*c]).flat();assert.equal(loopCommands(box).filter(c=>c[0]==='C').length,0);
 });
+const corners=require('../public/vector-corners');
+test('individual radius changes one corner, keeps other corners and hole, is reversible',()=>{
+ const commands=[['M',0,0],['L',100,0],['L',100,80],['L',0,80],['Z'],['M',20,20],['L',20,30],['L',30,30],['L',30,20],['Z']];
+ const original=JSON.stringify(commands),edited=corners.apply(commands,{1:10});
+ assert.equal(edited.filter(c=>c[0]==='C').length,1);assert.equal(edited.filter(c=>c[0]==='Z').length,2);
+ const curve=edited.find(c=>c[0]==='C');
+ [95.5228475,0,100,4.4771525,100,10].forEach((v,i)=>assert.ok(Math.abs(curve[i+1]-v)<1e-6));
+ assert.equal(JSON.stringify(commands),original);assert.deepEqual(corners.apply(commands,{1:0}),commands);
+});
+test('corner edit is identical in preview SVG and exported PDF EPS DXF geometry',()=>{
+ const path={...rectangle,commands:[['M',0,0],['L',100,0],['L',100,80],['L',0,80],['Z']]};
+ const doc=renderVector({...source,paths:[path]},{0:{corners:{1:10}}},DEFAULT_EXPORT_STYLE);
+ assert.equal(doc.paths[0].commands.filter(c=>c[0]==='C').length,1);
+ assert.match(doc.svg,/ C /);assert.match(Buffer.from(pdf(doc)).toString(),/ c\n/);assert.match(postscript(doc),/curveto/);assert.match(dxf(doc),/LWPOLYLINE/);
+});
+test('physical dimensions agree across SVG PDF EPS DXF at 96dpi',()=>{
+ const doc=renderVector({...source,originalWidth:96,originalHeight:96},{},{...DEFAULT_EXPORT_STYLE,unit:'mm',groupByColor:true});
+ assert.match(doc.svg,/width="25.4mm" height="25.4mm"/);assert.match(doc.svg,/<g data-color=/);
+ assert.match(Buffer.from(pdf(doc)).toString(),/MediaBox \[0 0 72 72\]/);
+ assert.match(postscript(doc),/%%BoundingBox: 0 0 72 72/);assert.match(dxf(doc),/\$INSUNITS\n70\n4\n/);
+});
+test('chains returning to a junction never close the parent contour early',()=>{
+ const doc=blocks(32,32,(x,y)=>((x*19+y*7+x*y)%11)<3?[255,0,0,255]:[0,80,200,255]);
+ for(const p of doc.paths){
+  let open=false;
+  for(const c of p.commands){if(c[0]==='M'){assert.equal(open,false);open=true;}else if(c[0]==='Z'){assert.equal(open,true);open=false;}else assert.equal(open,true,'drawing after premature close');}
+  assert.equal(open,false);assert.equal(p.commands.filter(c=>c[0]==='Z').length,p.loops.length);
+ }
+});
+const patterns=require('../public/vector-patterns');
+test('symmetry corrects a near-symmetric polygon and rejects curves/large errors',()=>{
+ const polygon=[['M',0,0],['L',10,0],['L',9.5,10],['L',0,10],['Z']];
+ const result=patterns.symmetry(polygon,'x');assert.ok(result);assert.equal(result.error,.5);
+ assert.deepEqual(result.commands,[['M',0,0],['L',10,0],['L',9.75,10],['L',.25,10],['Z']]);
+ assert.equal(patterns.symmetry([['M',0,0],['L',10,0],['L',6,10],['L',0,10],['Z']],'x'),null);
+ assert.equal(patterns.symmetry(loopCommands(Array.from({length:64},(_,i)=>[50+40*Math.cos(i*Math.PI/32),40+20*Math.sin(i*Math.PI/32)]).flat()),'x'),null);
+});
+test('repeated shape matching requires identical geometry up to translation',()=>{
+ const a=[['M',0,0],['L',10,0],['L',10,10],['L',0,10],['Z']];
+ const b=a.map(c=>c.map((v,i)=>i?v+20:v)),c=a.map(c=>c.map((v,i)=>i?v*2:v));
+ assert.deepEqual(patterns.translatedMatches([{commands:a},{commands:b},{commands:c}],0),[0,1]);
+});
